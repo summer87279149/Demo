@@ -28,26 +28,48 @@ struct PokemonSearchView: View {
 
     @ViewBuilder
     private var content: some View {
-        if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        switch viewModel.state {
+        case .idle:
             ContentUnavailableView(
                 "Search Pokemon",
                 systemImage: "magnifyingglass",
                 description: Text("Type a species name to search the PokeAPI.")
             )
-        } else if viewModel.isLoading {
+        case .loading:
             LoadingView()
-        } else if let message = viewModel.errorMessage, viewModel.species.isEmpty {
+        case .loaded(let content):
+            if content.species.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "questionmark.circle",
+                    description: Text("Try a different species name.")
+                )
+            } else {
+                PokemonSpeciesList(
+                    content: content,
+                    bottomState: .idle,
+                    onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
+                    onRetryNextPage: {}
+                )
+            }
+        case .loadingNextPage(let content):
+            PokemonSpeciesList(
+                content: content,
+                bottomState: .loading,
+                onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
+                onRetryNextPage: {}
+            )
+        case .failed(let message):
             ErrorStateView(message: message) {
                 viewModel.retrySearch()
             }
-        } else if viewModel.species.isEmpty {
-            ContentUnavailableView(
-                "No Results",
-                systemImage: "questionmark.circle",
-                description: Text("Try a different species name.")
+        case .nextPageFailed(let content, let message):
+            PokemonSpeciesList(
+                content: content,
+                bottomState: .failed(message),
+                onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
+                onRetryNextPage: viewModel.retryNextPage
             )
-        } else {
-            PokemonSpeciesList(viewModel: viewModel)
         }
     }
 }
@@ -106,11 +128,14 @@ private struct ErrorStateView: View {
 }
 
 private struct PokemonSpeciesList: View {
-    @Bindable var viewModel: PokemonSearchViewModel
+    let content: PokemonSearchContent
+    let bottomState: PaginationBottomState
+    let onSpeciesAppear: (PokemonSpecies) -> Void
+    let onRetryNextPage: () -> Void
 
     var body: some View {
         List {
-            ForEach(viewModel.species) { species in
+            ForEach(content.species) { species in
                 Section {
                     ForEach(species.pokemons) { pokemon in
                         NavigationLink(value: pokemon) {
@@ -122,21 +147,22 @@ private struct PokemonSpeciesList: View {
                     SpeciesHeaderView(species: species)
                 }
                 .onAppear {
-                    viewModel.loadNextPageIfNeeded(currentSpecies: species)
+                    onSpeciesAppear(species)
                 }
             }
 
-            if viewModel.isLoadingNextPage {
+            switch bottomState {
+            case .idle:
+                EmptyView()
+            case .loading:
                 HStack {
                     Spacer()
                     ProgressView()
                     Spacer()
                 }
-            } else if let message = viewModel.errorMessage {
+            case .failed(let message):
                 Button {
-                    if let lastSpecies = viewModel.species.last {
-                        viewModel.loadNextPageIfNeeded(currentSpecies: lastSpecies)
-                    }
+                    onRetryNextPage()
                 } label: {
                     Label(message, systemImage: "arrow.clockwise")
                 }
@@ -144,6 +170,12 @@ private struct PokemonSpeciesList: View {
         }
         .listStyle(.plain)
     }
+}
+
+private enum PaginationBottomState {
+    case idle
+    case loading
+    case failed(String)
 }
 
 private struct SpeciesHeaderView: View {

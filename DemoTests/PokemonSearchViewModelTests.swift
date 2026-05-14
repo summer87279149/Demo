@@ -22,8 +22,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 400_000_000)
 
         XCTAssertTrue(useCase.requests.isEmpty)
-        XCTAssertTrue(viewModel.species.isEmpty)
-        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertEqual(viewModel.state, .idle)
     }
 
     func testDebouncedSearchLoadsResults() async throws {
@@ -45,9 +44,10 @@ final class PokemonSearchViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 450_000_000)
 
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika"])
-        XCTAssertEqual(viewModel.species, [species])
-        XCTAssertEqual(viewModel.totalCount, 1)
-        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(species: [species], totalCount: 1))
+        )
     }
 
     func testNewSearchReplacesPreviousResults() async throws {
@@ -76,7 +76,10 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.searchText = "char"
         try await Task.sleep(nanoseconds: 450_000_000)
 
-        XCTAssertEqual(viewModel.species, [charmander])
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(species: [charmander], totalCount: 1))
+        )
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika", "char"])
     }
 
@@ -106,9 +109,56 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.loadNextPageIfNeeded(currentSpecies: firstSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        XCTAssertEqual(viewModel.species, [firstSpecies, secondSpecies])
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(species: [firstSpecies, secondSpecies], totalCount: 2))
+        )
         XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1])
         XCTAssertFalse(viewModel.hasMorePages)
+    }
+
+    func testNextPageFailureKeepsExistingContentAndRetryRecovers() async throws {
+        let useCase = MockPokemonSearchUseCase()
+        let firstSpecies = PokemonTestFactory.species(id: 1, name: "bulbasaur")
+        let secondSpecies = PokemonTestFactory.species(id: 2, name: "ivysaur")
+        let firstPage = PokemonSearchPage(
+            items: [firstSpecies],
+            totalCount: 2,
+            limit: 1,
+            offset: 0
+        )
+        let secondPage = PokemonSearchPage(
+            items: [secondSpecies],
+            totalCount: 2,
+            limit: 1,
+            offset: 1
+        )
+        useCase.pagesByOffset[0] = firstPage
+        let viewModel = PokemonSearchViewModel(
+            dependencyProvider: MockPokemonSearchDependencyProvider(useCase: useCase),
+            pageSize: 1
+        )
+
+        viewModel.searchText = "saur"
+        try await Task.sleep(nanoseconds: 450_000_000)
+
+        useCase.error = ViewModelTestError.failed
+        viewModel.loadNextPageIfNeeded(currentSpecies: firstSpecies)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let content = PokemonSearchContent(species: [firstSpecies], totalCount: 2)
+        XCTAssertEqual(viewModel.state, .nextPageFailed(content, "Request failed"))
+
+        useCase.error = nil
+        useCase.pagesByOffset[1] = secondPage
+        viewModel.retryNextPage()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(species: [firstSpecies, secondSpecies], totalCount: 2))
+        )
+        XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1, 1])
     }
 
     func testErrorStateCanRecoverWithRetry() async throws {
@@ -122,8 +172,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.searchText = "pika"
         try await Task.sleep(nanoseconds: 450_000_000)
 
-        XCTAssertTrue(viewModel.species.isEmpty)
-        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertEqual(viewModel.state, .failed("Request failed"))
 
         let species = PokemonTestFactory.species(id: 25, name: "pikachu")
         useCase.error = nil
@@ -136,8 +185,10 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.retrySearch()
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        XCTAssertEqual(viewModel.species, [species])
-        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(species: [species], totalCount: 1))
+        )
     }
 }
 
