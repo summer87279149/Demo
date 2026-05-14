@@ -20,15 +20,26 @@ final class DefaultSearchPokemonSpeciesUseCase: SearchPokemonSpeciesUseCase {
     }
 
     func search(keyword: String, limit: Int, offset: Int) -> AnyPublisher<PokemonSearchPage, Error> {
-        Future<PokemonSearchPage, Error> { [repository] promise in
-            Task {
-                do {
-                    let page = try await repository.searchSpecies(keyword: keyword, limit: limit, offset: offset)
-                    promise(.success(page))
-                } catch {
-                    promise(.failure(error))
+        Deferred { [repository] in
+            // Bridge the async repository call into Combine while preserving cancellation.
+            var task: Task<Void, Never>?
+            let future = Future<PokemonSearchPage, Error> { promise in
+                task = Task {
+                    do {
+                        let page = try await repository.searchSpecies(keyword: keyword, limit: limit, offset: offset)
+                        guard !Task.isCancelled else { return }
+                        promise(.success(page))
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        promise(.failure(error))
+                    }
                 }
             }
+
+            return future
+                .handleEvents(receiveCancel: {
+                    task?.cancel()
+                })
         }
         .eraseToAnyPublisher()
     }

@@ -9,7 +9,7 @@ extension PokemonAPI {
     static let operationName: String = "SearchPokemonSpecies"
     static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
-        #"query SearchPokemonSpecies($search: String!, $limit: Int!, $offset: Int!) { pokemon_v2_pokemonspecies( where: { name: { _ilike: $search } } limit: $limit offset: $offset ) { __typename id name capture_rate pokemon_v2_pokemoncolor { __typename id name } pokemon_v2_pokemons { __typename id name pokemon_v2_pokemonabilities { __typename id pokemon_v2_ability { __typename name } } } } }"#
+        #"query SearchPokemonSpecies($search: String!, $limit: Int!, $offset: Int!) { pokemon_v2_pokemonspecies( where: { name: { _ilike: $search } } order_by: { id: asc } limit: $limit offset: $offset ) { __typename id name capture_rate pokemon_v2_pokemoncolor { __typename id name } pokemon_v2_pokemons { __typename id name pokemon_v2_pokemonabilities { __typename id pokemon_v2_ability { __typename name } } } } }"#
       ))
 
     public var search: String
@@ -40,6 +40,7 @@ extension PokemonAPI {
       static var __selections: [ApolloAPI.Selection] { [
         .field("pokemon_v2_pokemonspecies", [Pokemon_v2_pokemonspecy].self, arguments: [
           "where": ["name": ["_ilike": .variable("search")]],
+          "order_by": ["id": "asc"],
           "limit": .variable("limit"),
           "offset": .variable("offset")
         ]),

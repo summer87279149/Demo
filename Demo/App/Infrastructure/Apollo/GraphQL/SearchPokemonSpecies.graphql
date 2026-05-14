@@ -1,6 +1,7 @@
 query SearchPokemonSpecies($search: String!, $limit: Int!, $offset: Int!) {
   pokemon_v2_pokemonspecies(
     where: { name: { _ilike: $search } }
+    order_by: { id: asc }
     limit: $limit
     offset: $offset
   ) {
