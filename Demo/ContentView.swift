@@ -8,17 +8,16 @@
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
+    @State private var searchViewModel = PokemonSearchViewModel()
 
-#Preview {
-    ContentView()
+    var body: some View {
+        if hasSeenWelcome {
+            PokemonSearchView(viewModel: searchViewModel)
+        } else {
+            WelcomeView {
+                hasSeenWelcome = true
+            }
+        }
+    }
 }
