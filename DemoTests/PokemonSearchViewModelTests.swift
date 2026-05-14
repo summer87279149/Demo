@@ -114,7 +114,11 @@ final class PokemonSearchViewModelTests: XCTestCase {
             .loaded(PokemonSearchContent(species: [firstSpecies, secondSpecies], totalCount: 2))
         )
         XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1])
-        XCTAssertFalse(viewModel.hasMorePages)
+        if case .loaded(let content) = viewModel.state {
+            XCTAssertFalse(content.hasMorePages)
+        } else {
+            XCTFail("Expected loaded state after pagination.")
+        }
     }
 
     func testNextPageFailureKeepsExistingContentAndRetryRecovers() async throws {

@@ -25,32 +25,26 @@ final class PokemonSearchViewModel {
         didSet {
             if sanitizedKeyword(from: searchText).isEmpty {
                 state = .idle
-                currentKeyword = ""
-                paginationCancellable?.cancel()
-                retryCancellable?.cancel()
+                activeKeyword = ""
+                manualRequestCancellable?.cancel()
             }
             searchTextSubject.send(searchText)
         }
     }
     private(set) var state: PokemonSearchState = .idle
 
-    var hasMorePages: Bool {
-        state.content?.hasMorePages ?? false
-    }
-
-    @ObservationIgnored private let dependencyProvider: PokemonSearchViewModelDependencyProviderType
+    @ObservationIgnored private let useCase: PokemonSearchUseCaseType?
     @ObservationIgnored private let pageSize: Int
     @ObservationIgnored private let searchTextSubject = PassthroughSubject<String, Never>()
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
-    @ObservationIgnored private var paginationCancellable: AnyCancellable?
-    @ObservationIgnored private var retryCancellable: AnyCancellable?
-    @ObservationIgnored private var currentKeyword = ""
+    @ObservationIgnored private var manualRequestCancellable: AnyCancellable?
+    @ObservationIgnored private var activeKeyword = ""
 
     init(
         dependencyProvider: PokemonSearchViewModelDependencyProviderType = Dependency.shared,
         pageSize: Int = 20
     ) {
-        self.dependencyProvider = dependencyProvider
+        self.useCase = dependencyProvider.pokemonSearchUseCase
         self.pageSize = pageSize
         setupBindings()
     }
@@ -58,22 +52,22 @@ final class PokemonSearchViewModel {
     func loadNextPageIfNeeded(currentSpecies: PokemonSpecies) {
         guard case .loaded(let content) = state else { return }
         guard currentSpecies.id == content.species.last?.id else { return }
-        guard content.hasMorePages, !currentKeyword.isEmpty else { return }
+        guard content.hasMorePages, !activeKeyword.isEmpty else { return }
 
         loadNextPage(from: content)
     }
 
     func retryNextPage() {
         guard case .nextPageFailed(let content, _) = state else { return }
-        guard content.hasMorePages, !currentKeyword.isEmpty else { return }
+        guard content.hasMorePages, !activeKeyword.isEmpty else { return }
 
         loadNextPage(from: content)
     }
 
     private func loadNextPage(from content: PokemonSearchContent) {
         state = .loadingNextPage(content)
-        paginationCancellable = searchPublisher(
-            keyword: currentKeyword,
+        manualRequestCancellable = searchPublisher(
+            keyword: activeKeyword,
             offset: content.species.count,
             append: true
         )
@@ -91,7 +85,7 @@ final class PokemonSearchViewModel {
         }
 
         prepareForNewSearch(keyword: keyword)
-        retryCancellable = searchPublisher(keyword: keyword, offset: 0, append: false)
+        manualRequestCancellable = searchPublisher(keyword: keyword, offset: 0, append: false)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] result in
                 self?.apply(result)
@@ -123,14 +117,13 @@ final class PokemonSearchViewModel {
     }
 
     private func prepareForNewSearch(keyword: String) {
-        currentKeyword = keyword
+        activeKeyword = keyword
         state = .loading
-        paginationCancellable?.cancel()
-        retryCancellable?.cancel()
+        manualRequestCancellable?.cancel()
     }
 
     private func searchPublisher(keyword: String, offset: Int, append: Bool) -> AnyPublisher<SearchResult, Never> {
-        guard let useCase = dependencyProvider.pokemonSearchUseCase else {
+        guard let useCase else {
             return Just(.failure("Search service is not available.", append: append)).eraseToAnyPublisher()
         }
 
@@ -146,7 +139,7 @@ final class PokemonSearchViewModel {
     private func apply(_ result: SearchResult) {
         switch result {
         case .empty:
-            currentKeyword = ""
+            activeKeyword = ""
             state = .idle
         case .page(let page, let append):
             let previousSpecies = append ? state.content?.species ?? [] : []
