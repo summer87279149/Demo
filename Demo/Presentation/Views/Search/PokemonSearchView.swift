@@ -48,28 +48,19 @@ struct PokemonSearchView: View {
                 PokemonSpeciesList(
                     content: content,
                     bottomState: .idle,
-                    onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
-                    onRetryNextPage: {}
+                    onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:)
                 )
             }
         case .loadingNextPage(let content):
             PokemonSpeciesList(
                 content: content,
                 bottomState: .loading,
-                onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
-                onRetryNextPage: {}
+                onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:)
             )
         case .failed(let message):
             ErrorStateView(message: message) {
                 viewModel.retrySearch()
             }
-        case .nextPageFailed(let content, let message):
-            PokemonSpeciesList(
-                content: content,
-                bottomState: .failed(message),
-                onSpeciesAppear: viewModel.loadNextPageIfNeeded(currentSpecies:),
-                onRetryNextPage: viewModel.retryNextPage
-            )
         }
     }
 }

@@ -29,6 +29,6 @@ enum PokemonSearchPreviewData {
     static let content = PokemonSearchContent(
         keyword: "pika",
         species: [pikachuSpecies],
-        totalCount: 2
+        hasMorePages: false
     )
 }

@@ -10,12 +10,12 @@ import SwiftUI
 @main
 struct DemoApp: App {
     init() {
-        Dependency.shared.register(NetworkServiceType.self) { _ in
-            NetworkService()
+        Dependency.shared.register(PokemonGraphQLClientType.self) { _ in
+            ApolloPokemonGraphQLClient()
         }
         Dependency.shared.register(PokemonRepositoryType.self) { resolver in
             PokemonRepository(
-                networkService: resolver.resolve(NetworkServiceType.self) ?? NetworkService()
+                graphQLClient: resolver.resolve(PokemonGraphQLClientType.self) ?? ApolloPokemonGraphQLClient()
             )
         }
         Dependency.shared.register(PokemonSearchUseCaseType.self) { resolver in

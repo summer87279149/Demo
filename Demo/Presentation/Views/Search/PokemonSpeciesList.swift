@@ -11,7 +11,6 @@ struct PokemonSpeciesList: View {
     let content: PokemonSearchContent
     let bottomState: PaginationBottomState
     let onSpeciesAppear: (PokemonSpecies) -> Void
-    let onRetryNextPage: () -> Void
 
     var body: some View {
         List {
@@ -40,12 +39,6 @@ struct PokemonSpeciesList: View {
                     ProgressView()
                     Spacer()
                 }
-            case .failed(let message):
-                Button {
-                    onRetryNextPage()
-                } label: {
-                    Label(message, systemImage: "arrow.clockwise")
-                }
             }
         }
         .listStyle(.plain)
@@ -57,8 +50,7 @@ struct PokemonSpeciesList: View {
         PokemonSpeciesList(
             content: PokemonSearchPreviewData.content,
             bottomState: .idle,
-            onSpeciesAppear: { _ in },
-            onRetryNextPage: {}
+            onSpeciesAppear: { _ in }
         )
     }
 }
@@ -68,19 +60,7 @@ struct PokemonSpeciesList: View {
         PokemonSpeciesList(
             content: PokemonSearchPreviewData.content,
             bottomState: .loading,
-            onSpeciesAppear: { _ in },
-            onRetryNextPage: {}
-        )
-    }
-}
-
-#Preview("Next Page Failed") {
-    NavigationStack {
-        PokemonSpeciesList(
-            content: PokemonSearchPreviewData.content,
-            bottomState: .failed("Try again"),
-            onSpeciesAppear: { _ in },
-            onRetryNextPage: {}
+            onSpeciesAppear: { _ in }
         )
     }
 }

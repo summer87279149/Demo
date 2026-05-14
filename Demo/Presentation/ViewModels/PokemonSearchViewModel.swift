@@ -63,12 +63,6 @@ final class PokemonSearchViewModel {
         loadNextPage(from: content)
     }
 
-    func retryNextPage() {
-        guard case .nextPageFailed(let content, _) = state else { return }
-        guard content.hasMorePages else { return }
-
-        loadNextPage(from: content)
-    }
 
     private func loadNextPage(from content: PokemonSearchContent) {
         state = .loadingNextPage(content)
@@ -155,14 +149,14 @@ final class PokemonSearchViewModel {
             let content = PokemonSearchContent(
                 keyword: keyword,
                 species: species,
-                totalCount: page.totalCount
+                hasMorePages: page.hasMorePages
             )
             state = .loaded(content)
         case .failure(let message, let keyword, let append):
             guard keyword == sanitizedKeyword(from: searchText) else { return }
 
             if append, let content = state.content {
-                state = .nextPageFailed(content, message)
+                state = .loaded(content)
             } else {
                 state = .failed(message)
             }
@@ -183,11 +177,7 @@ private enum SearchResult {
 struct PokemonSearchContent: Equatable {
     let keyword: String
     let species: [PokemonSpecies]
-    let totalCount: Int
-
-    var hasMorePages: Bool {
-        species.count < totalCount
-    }
+    let hasMorePages: Bool
 }
 
 enum PokemonSearchState: Equatable {
@@ -196,15 +186,13 @@ enum PokemonSearchState: Equatable {
     case loaded(PokemonSearchContent)
     case loadingNextPage(PokemonSearchContent)
     case failed(String)
-    case nextPageFailed(PokemonSearchContent, String)
 }
 
 private extension PokemonSearchState {
     var content: PokemonSearchContent? {
         switch self {
         case .loaded(let content),
-             .loadingNextPage(let content),
-             .nextPageFailed(let content, _):
+             .loadingNextPage(let content):
             return content
         case .idle, .loading, .failed:
             return nil

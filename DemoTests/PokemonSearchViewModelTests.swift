@@ -30,7 +30,6 @@ final class PokemonSearchViewModelTests: XCTestCase {
         let species = PokemonTestFactory.species(id: 25, name: "pikachu")
         useCase.pagesByKeyword["pika"] = PokemonSearchPage(
             items: [species],
-            totalCount: 1,
             limit: 20,
             offset: 0
         )
@@ -46,7 +45,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika"])
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(keyword: "pika", species: [species], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "pika", species: [species], hasMorePages: false))
         )
     }
 
@@ -56,13 +55,11 @@ final class PokemonSearchViewModelTests: XCTestCase {
         let charmander = PokemonTestFactory.species(id: 4, name: "charmander")
         useCase.pagesByKeyword["pika"] = PokemonSearchPage(
             items: [pikachu],
-            totalCount: 1,
             limit: 20,
             offset: 0
         )
         useCase.pagesByKeyword["char"] = PokemonSearchPage(
             items: [charmander],
-            totalCount: 1,
             limit: 20,
             offset: 0
         )
@@ -81,7 +78,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(keyword: "char", species: [charmander], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "char", species: [charmander], hasMorePages: false))
         )
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika", "char"])
     }
@@ -90,33 +87,32 @@ final class PokemonSearchViewModelTests: XCTestCase {
         let useCase = MockPokemonSearchUseCase()
         let firstSpecies = PokemonTestFactory.species(id: 1, name: "bulbasaur")
         let secondSpecies = PokemonTestFactory.species(id: 2, name: "ivysaur")
+        let thirdSpecies = PokemonTestFactory.species(id: 3, name: "venusaur")
         useCase.pagesByOffset[0] = PokemonSearchPage(
-            items: [firstSpecies],
-            totalCount: 2,
-            limit: 1,
+            items: [firstSpecies, secondSpecies],
+            limit: 2,
             offset: 0
         )
-        useCase.pagesByOffset[1] = PokemonSearchPage(
-            items: [secondSpecies],
-            totalCount: 2,
-            limit: 1,
-            offset: 1
+        useCase.pagesByOffset[2] = PokemonSearchPage(
+            items: [thirdSpecies],
+            limit: 2,
+            offset: 2
         )
         let viewModel = PokemonSearchViewModel(
             dependencyProvider: MockPokemonSearchDependencyProvider(useCase: useCase),
-            pageSize: 1
+            pageSize: 2
         )
 
         viewModel.searchText = "saur"
         try await Task.sleep(nanoseconds: 450_000_000)
-        viewModel.loadNextPageIfNeeded(currentSpecies: firstSpecies)
+        viewModel.loadNextPageIfNeeded(currentSpecies: secondSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], totalCount: 2))
+            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies, thirdSpecies], hasMorePages: false))
         )
-        XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1])
+        XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 2])
         if case .loaded(let content) = viewModel.state {
             XCTAssertFalse(content.hasMorePages)
         } else {
@@ -128,44 +124,43 @@ final class PokemonSearchViewModelTests: XCTestCase {
         let useCase = MockPokemonSearchUseCase()
         let firstSpecies = PokemonTestFactory.species(id: 1, name: "bulbasaur")
         let secondSpecies = PokemonTestFactory.species(id: 2, name: "ivysaur")
+        let thirdSpecies = PokemonTestFactory.species(id: 3, name: "venusaur")
         let firstPage = PokemonSearchPage(
-            items: [firstSpecies],
-            totalCount: 2,
-            limit: 1,
+            items: [firstSpecies, secondSpecies],
+            limit: 2,
             offset: 0
         )
         let secondPage = PokemonSearchPage(
-            items: [secondSpecies],
-            totalCount: 2,
-            limit: 1,
-            offset: 1
+            items: [thirdSpecies],
+            limit: 2,
+            offset: 2
         )
         useCase.pagesByOffset[0] = firstPage
         let viewModel = PokemonSearchViewModel(
             dependencyProvider: MockPokemonSearchDependencyProvider(useCase: useCase),
-            pageSize: 1
+            pageSize: 2
         )
 
         viewModel.searchText = "saur"
         try await Task.sleep(nanoseconds: 450_000_000)
 
         useCase.error = ViewModelTestError.failed
-        viewModel.loadNextPageIfNeeded(currentSpecies: firstSpecies)
+        viewModel.loadNextPageIfNeeded(currentSpecies: secondSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        let content = PokemonSearchContent(keyword: "saur", species: [firstSpecies], totalCount: 2)
+        let content = PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], hasMorePages: true)
         XCTAssertEqual(viewModel.state, .nextPageFailed(content, "Request failed"))
 
         useCase.error = nil
-        useCase.pagesByOffset[1] = secondPage
+        useCase.pagesByOffset[2] = secondPage
         viewModel.retryNextPage()
         try await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], totalCount: 2))
+            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies, thirdSpecies], hasMorePages: false))
         )
-        XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1, 1])
+        XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 2, 2])
     }
 
     func testErrorStateCanRecoverWithRetry() async throws {
@@ -185,7 +180,6 @@ final class PokemonSearchViewModelTests: XCTestCase {
         useCase.error = nil
         useCase.pagesByKeyword["pika"] = PokemonSearchPage(
             items: [species],
-            totalCount: 1,
             limit: 20,
             offset: 0
         )
@@ -194,7 +188,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(keyword: "pika", species: [species], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "pika", species: [species], hasMorePages: false))
         )
     }
 }
@@ -214,7 +208,7 @@ private final class MockPokemonSearchUseCase: PokemonSearchUseCaseType {
 
         let page = pagesByOffset[offset]
             ?? pagesByKeyword[keyword]
-            ?? PokemonSearchPage(items: [], totalCount: 0, limit: limit, offset: offset)
+            ?? PokemonSearchPage(items: [], limit: limit, offset: offset)
 
         return Just(page)
             .setFailureType(to: Error.self)

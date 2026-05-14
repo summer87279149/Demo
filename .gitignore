@@ -10,3 +10,5 @@ xcuserdata/
 .swiftpm/
 .build/
 Package.resolved
+apollo-ios-cli
+apollo-ios-cli.tar.gz

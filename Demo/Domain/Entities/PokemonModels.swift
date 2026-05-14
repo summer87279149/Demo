@@ -23,7 +23,10 @@ struct Pokemon: Identifiable, Hashable {
 
 struct PokemonSearchPage: Equatable {
     let items: [PokemonSpecies]
-    let totalCount: Int
     let limit: Int
     let offset: Int
+
+    var hasMorePages: Bool {
+        items.count == limit
+    }
 }

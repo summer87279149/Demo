@@ -20,7 +20,6 @@ final class PokemonSearchUseCaseTests: XCTestCase {
     func testSearchDelegatesToRepository() {
         let expectedPage = PokemonSearchPage(
             items: [PokemonTestFactory.species(id: 25, name: "pikachu")],
-            totalCount: 1,
             limit: 20,
             offset: 0
         )
@@ -53,7 +52,7 @@ final class PokemonSearchUseCaseTests: XCTestCase {
 
 final class MockPokemonRepository: PokemonRepositoryType {
     var requests: [(keyword: String, limit: Int, offset: Int)] = []
-    var page = PokemonSearchPage(items: [], totalCount: 0, limit: 20, offset: 0)
+    var page = PokemonSearchPage(items: [], limit: 20, offset: 0)
     var error: Error?
 
     func searchSpecies(keyword: String, limit: Int, offset: Int) -> AnyPublisher<PokemonSearchPage, Error> {

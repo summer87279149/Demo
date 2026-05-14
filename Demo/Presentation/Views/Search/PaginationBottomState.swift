@@ -8,5 +8,4 @@
 enum PaginationBottomState {
     case idle
     case loading
-    case failed(String)
 }
