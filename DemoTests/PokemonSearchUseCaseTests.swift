@@ -9,6 +9,7 @@ import Combine
 import XCTest
 @testable import Demo
 
+@MainActor
 final class PokemonSearchUseCaseTests: XCTestCase {
     private var cancellables: Set<AnyCancellable> = []
 
@@ -17,7 +18,7 @@ final class PokemonSearchUseCaseTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSearchDelegatesToRepository() {
+    func testSearchDelegatesToRepository() async throws {
         let expectedPage = PokemonSearchPage(
             items: [PokemonTestFactory.species(id: 25, name: "pikachu")],
             limit: 20,
@@ -25,22 +26,13 @@ final class PokemonSearchUseCaseTests: XCTestCase {
         )
         let repository = MockPokemonRepository()
         repository.page = expectedPage
-        let useCase = PokemonSearchUseCase(repository: repository)
+        let useCase = DefaultSearchPokemonSpeciesUseCase(repository: repository)
 
-        let expectation = expectation(description: "Use case returns repository page")
-        var receivedPage: PokemonSearchPage?
-        useCase.search(keyword: "pika", limit: 20, offset: 0)
-            .sink { completion in
-                if case .failure(let error) = completion {
-                    XCTFail("Unexpected error: \(error)")
-                }
-            } receiveValue: { page in
-                receivedPage = page
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-
-        wait(for: [expectation], timeout: 1.0)
+        var values = useCase
+            .search(keyword: "pika", limit: 20, offset: 0)
+            .values
+            .makeAsyncIterator()
+        let receivedPage = try await values.next()
 
         XCTAssertEqual(repository.requests.count, 1)
         XCTAssertEqual(repository.requests.first?.keyword, "pika")
@@ -50,20 +42,18 @@ final class PokemonSearchUseCaseTests: XCTestCase {
     }
 }
 
-final class MockPokemonRepository: PokemonRepositoryType {
+final class MockPokemonRepository: PokemonRepository {
     var requests: [(keyword: String, limit: Int, offset: Int)] = []
     var page = PokemonSearchPage(items: [], limit: 20, offset: 0)
     var error: Error?
 
-    func searchSpecies(keyword: String, limit: Int, offset: Int) -> AnyPublisher<PokemonSearchPage, Error> {
+    func searchSpecies(keyword: String, limit: Int, offset: Int) async throws -> PokemonSearchPage {
         requests.append((keyword, limit, offset))
 
         if let error {
-            return Fail(error: error).eraseToAnyPublisher()
+            throw error
         }
 
-        return Just(page)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
+        return page
     }
 }

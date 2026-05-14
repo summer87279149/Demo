@@ -1,60 +1,25 @@
 //
-//  PokemonRepository.swift
+//  DefaultPokemonRepository.swift
 //  Demo
 //
 //  Created by xiatian on 5/14/26.
 //
 
 import Apollo
-import Combine
 import Foundation
 
-protocol PokemonRepositoryType {
-    func searchSpecies(keyword: String, limit: Int, offset: Int) -> AnyPublisher<PokemonSearchPage, Error>
-}
-
-protocol PokemonGraphQLClientType: Sendable {
-    func searchSpecies(keyword: String, limit: Int, offset: Int) async throws -> PokemonSearchPage
-}
-
-final class PokemonRepository: PokemonRepositoryType {
-    private let graphQLClient: PokemonGraphQLClientType
-
-    init(graphQLClient: PokemonGraphQLClientType = ApolloPokemonGraphQLClient()) {
-        self.graphQLClient = graphQLClient
-    }
-
-    func searchSpecies(keyword: String, limit: Int, offset: Int) -> AnyPublisher<PokemonSearchPage, Error> {
-        let graphQLClient = graphQLClient
-        return Future<PokemonSearchPage, Error> { promise in
-            Task {
-                do {
-                    let page = try await graphQLClient.searchSpecies(
-                        keyword: keyword,
-                        limit: limit,
-                        offset: offset
-                    )
-                    promise(.success(page))
-                } catch {
-                    promise(.failure(error))
-                }
-            }
-        }
-        .eraseToAnyPublisher()
-    }
-}
-
-final class ApolloPokemonGraphQLClient: PokemonGraphQLClientType {
+final class DefaultPokemonRepository: PokemonRepository {
     private let client: ApolloClient
 
-    init(
-        endpoint: URL = URL(string: "https://beta.pokeapi.co/graphql/v1beta")!,
-        client: ApolloClient? = nil
-    ) {
-        self.client = client ?? ApolloClient(url: endpoint)
+    init(client: ApolloClient = ApolloClient(url: URL(string: "https://beta.pokeapi.co/graphql/v1beta")!)) {
+        self.client = client
     }
 
-    func searchSpecies(keyword: String, limit: Int, offset: Int) async throws -> PokemonSearchPage {
+    func searchSpecies(
+        keyword: String,
+        limit: Int,
+        offset: Int
+    ) async throws -> PokemonSearchPage {
         let response = try await client.fetch(
             query: PokemonAPI.SearchPokemonSpeciesQuery(
                 search: "%\(keyword)%",

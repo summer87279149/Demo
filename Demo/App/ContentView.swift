@@ -9,11 +9,10 @@ import SwiftUI
 
 struct ContentView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
-    @State private var searchViewModel = PokemonSearchViewModel()
 
     var body: some View {
         if hasSeenWelcome {
-            PokemonSearchView(viewModel: searchViewModel)
+            PokemonSearchView()
         } else {
             WelcomeView {
                 hasSeenWelcome = true

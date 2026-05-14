@@ -1,5 +1,5 @@
 //
-//  PokemonModels.swift
+//  PokemonSpecies.swift
 //  Demo
 //
 //  Created by xiatian on 5/14/26.
@@ -13,12 +13,6 @@ struct PokemonSpecies: Identifiable, Equatable {
     let captureRate: Int
     let colorName: String
     let pokemons: [Pokemon]
-}
-
-struct Pokemon: Identifiable, Hashable {
-    let id: Int
-    let name: String
-    let abilities: [String]
 }
 
 struct PokemonSearchPage: Equatable {

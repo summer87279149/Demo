@@ -13,14 +13,14 @@
     },
     "downloadTimeout": 60,
     "headers": [],
-    "outputPath": "./Demo/DataLayer/GraphQL/schema.graphqls"
+    "outputPath": "./Demo/App/Infrastructure/Apollo/GraphQL/schema.graphqls"
   },
   "input": {
     "operationSearchPaths": [
-      "./Demo/DataLayer/GraphQL/**/*.graphql"
+      "./Demo/App/Infrastructure/Apollo/GraphQL/**/*.graphql"
     ],
     "schemaSearchPaths": [
-      "./Demo/DataLayer/GraphQL/schema.graphqls"
+      "./Demo/App/Infrastructure/Apollo/GraphQL/schema.graphqls"
     ]
   },
   "output": {
@@ -28,7 +28,7 @@
       "none": {}
     },
     "schemaTypes": {
-      "path": "./Demo/Generated/PokemonAPI",
+      "path": "./Demo/App/Infrastructure/Apollo/Generated/PokemonAPI",
       "moduleType": {
         "embeddedInTarget": {
           "name": "Demo"

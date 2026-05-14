@@ -148,12 +148,14 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.loadNextPageIfNeeded(currentSpecies: secondSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        let content = PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], hasMorePages: true)
-        XCTAssertEqual(viewModel.state, .nextPageFailed(content, "Request failed"))
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], hasMorePages: true))
+        )
 
         useCase.error = nil
         useCase.pagesByOffset[2] = secondPage
-        viewModel.retryNextPage()
+        viewModel.loadNextPageIfNeeded(currentSpecies: secondSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
         XCTAssertEqual(
@@ -193,7 +195,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
     }
 }
 
-private final class MockPokemonSearchUseCase: PokemonSearchUseCaseType {
+private final class MockPokemonSearchUseCase: SearchPokemonSpeciesUseCase {
     var requests: [(keyword: String, limit: Int, offset: Int)] = []
     var pagesByKeyword: [String: PokemonSearchPage] = [:]
     var pagesByOffset: [Int: PokemonSearchPage] = [:]
@@ -217,9 +219,9 @@ private final class MockPokemonSearchUseCase: PokemonSearchUseCaseType {
 }
 
 private struct MockPokemonSearchDependencyProvider: PokemonSearchViewModelDependencyProviderType {
-    let useCase: PokemonSearchUseCaseType
+    let useCase: SearchPokemonSpeciesUseCase
 
-    var pokemonSearchUseCase: PokemonSearchUseCaseType? {
+    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase? {
         useCase
     }
 }
