@@ -6,7 +6,10 @@
 //
 
 import SwiftUI
-
+enum PaginationBottomState {
+    case idle
+    case loading
+}
 struct PokemonSpeciesList: View {
     let content: PokemonSearchContent
     let bottomState: PaginationBottomState
