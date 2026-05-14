@@ -23,22 +23,28 @@ extension Dependency: PokemonSearchViewModelDependencyProviderType {
 final class PokemonSearchViewModel {
     var searchText: String = "" {
         didSet {
-            if sanitizedKeyword(from: searchText).isEmpty {
+            let keyword = sanitizedKeyword(from: searchText)
+            if keyword.isEmpty {
                 state = .idle
-                activeKeyword = ""
-                manualRequestCancellable?.cancel()
+            } else {
+                state = .loading
             }
-            searchTextSubject.send(searchText)
+            manualRequestCancellable?.cancel()
+            searchTextSubject.send(keyword)
         }
     }
+
     private(set) var state: PokemonSearchState = .idle
 
     @ObservationIgnored private let useCase: PokemonSearchUseCaseType?
+
     @ObservationIgnored private let pageSize: Int
+
     @ObservationIgnored private let searchTextSubject = PassthroughSubject<String, Never>()
+
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+
     @ObservationIgnored private var manualRequestCancellable: AnyCancellable?
-    @ObservationIgnored private var activeKeyword = ""
 
     init(
         dependencyProvider: PokemonSearchViewModelDependencyProviderType = Dependency.shared,
@@ -52,14 +58,14 @@ final class PokemonSearchViewModel {
     func loadNextPageIfNeeded(currentSpecies: PokemonSpecies) {
         guard case .loaded(let content) = state else { return }
         guard currentSpecies.id == content.species.last?.id else { return }
-        guard content.hasMorePages, !activeKeyword.isEmpty else { return }
+        guard content.hasMorePages else { return }
 
         loadNextPage(from: content)
     }
 
     func retryNextPage() {
         guard case .nextPageFailed(let content, _) = state else { return }
-        guard content.hasMorePages, !activeKeyword.isEmpty else { return }
+        guard content.hasMorePages else { return }
 
         loadNextPage(from: content)
     }
@@ -67,7 +73,7 @@ final class PokemonSearchViewModel {
     private func loadNextPage(from content: PokemonSearchContent) {
         state = .loadingNextPage(content)
         manualRequestCancellable = searchPublisher(
-            keyword: activeKeyword,
+            keyword: content.keyword,
             offset: content.species.count,
             append: true
         )
@@ -94,7 +100,6 @@ final class PokemonSearchViewModel {
 
     private func setupBindings() {
         searchTextSubject
-            .map { [weak self] in self?.sanitizedKeyword(from: $0) ?? "" }
             .removeDuplicates()
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .map { [weak self] keyword -> AnyPublisher<SearchResult, Never> in
@@ -117,21 +122,23 @@ final class PokemonSearchViewModel {
     }
 
     private func prepareForNewSearch(keyword: String) {
-        activeKeyword = keyword
         state = .loading
         manualRequestCancellable?.cancel()
     }
 
     private func searchPublisher(keyword: String, offset: Int, append: Bool) -> AnyPublisher<SearchResult, Never> {
         guard let useCase else {
-            return Just(.failure("Search service is not available.", append: append)).eraseToAnyPublisher()
+            return Just(
+                .failure("Search service is not available.", keyword: keyword, append: append)
+            )
+            .eraseToAnyPublisher()
         }
 
         return useCase
             .search(keyword: keyword, limit: pageSize, offset: offset)
-            .map { SearchResult.page($0, append: append) }
+            .map { SearchResult.page($0, keyword: keyword, append: append) }
             .catch { error in
-                Just(SearchResult.failure(error.localizedDescription, append: append))
+                Just(SearchResult.failure(error.localizedDescription, keyword: keyword, append: append))
             }
             .eraseToAnyPublisher()
     }
@@ -139,17 +146,21 @@ final class PokemonSearchViewModel {
     private func apply(_ result: SearchResult) {
         switch result {
         case .empty:
-            activeKeyword = ""
             state = .idle
-        case .page(let page, let append):
+        case .page(let page, let keyword, let append):
+            guard keyword == sanitizedKeyword(from: searchText) else { return }
+
             let previousSpecies = append ? state.content?.species ?? [] : []
             let species = previousSpecies + page.items
             let content = PokemonSearchContent(
+                keyword: keyword,
                 species: species,
                 totalCount: page.totalCount
             )
             state = .loaded(content)
-        case .failure(let message, let append):
+        case .failure(let message, let keyword, let append):
+            guard keyword == sanitizedKeyword(from: searchText) else { return }
+
             if append, let content = state.content {
                 state = .nextPageFailed(content, message)
             } else {
@@ -165,11 +176,12 @@ final class PokemonSearchViewModel {
 
 private enum SearchResult {
     case empty
-    case page(PokemonSearchPage, append: Bool)
-    case failure(String, append: Bool)
+    case page(PokemonSearchPage, keyword: String, append: Bool)
+    case failure(String, keyword: String, append: Bool)
 }
 
 struct PokemonSearchContent: Equatable {
+    let keyword: String
     let species: [PokemonSpecies]
     let totalCount: Int
 

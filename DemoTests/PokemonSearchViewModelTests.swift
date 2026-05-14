@@ -46,7 +46,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika"])
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(species: [species], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "pika", species: [species], totalCount: 1))
         )
     }
 
@@ -74,11 +74,14 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.searchText = "pika"
         try await Task.sleep(nanoseconds: 450_000_000)
         viewModel.searchText = "char"
+
+        XCTAssertEqual(viewModel.state, .loading)
+
         try await Task.sleep(nanoseconds: 450_000_000)
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(species: [charmander], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "char", species: [charmander], totalCount: 1))
         )
         XCTAssertEqual(useCase.requests.map { $0.keyword }, ["pika", "char"])
     }
@@ -111,7 +114,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(species: [firstSpecies, secondSpecies], totalCount: 2))
+            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], totalCount: 2))
         )
         XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1])
         if case .loaded(let content) = viewModel.state {
@@ -150,7 +153,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
         viewModel.loadNextPageIfNeeded(currentSpecies: firstSpecies)
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        let content = PokemonSearchContent(species: [firstSpecies], totalCount: 2)
+        let content = PokemonSearchContent(keyword: "saur", species: [firstSpecies], totalCount: 2)
         XCTAssertEqual(viewModel.state, .nextPageFailed(content, "Request failed"))
 
         useCase.error = nil
@@ -160,7 +163,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(species: [firstSpecies, secondSpecies], totalCount: 2))
+            .loaded(PokemonSearchContent(keyword: "saur", species: [firstSpecies, secondSpecies], totalCount: 2))
         )
         XCTAssertEqual(useCase.requests.map { $0.offset }, [0, 1, 1])
     }
@@ -191,7 +194,7 @@ final class PokemonSearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(
             viewModel.state,
-            .loaded(PokemonSearchContent(species: [species], totalCount: 1))
+            .loaded(PokemonSearchContent(keyword: "pika", species: [species], totalCount: 1))
         )
     }
 }
