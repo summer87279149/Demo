@@ -13,7 +13,7 @@ struct LoadingView: View {
             Image(systemName: "hourglass.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(.blue)
-            ProgressView("Searching")
+            ProgressView("Loading")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

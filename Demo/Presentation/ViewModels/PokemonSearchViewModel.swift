@@ -23,11 +23,10 @@ extension Dependency: PokemonSearchViewModelDependencyProviderType {
 final class PokemonSearchViewModel {
     var searchText: String = "" {
         didSet {
+            guard oldValue != searchText else { return }
             let keyword = sanitizedKeyword(from: searchText)
             if keyword.isEmpty {
                 state = .idle
-            } else {
-                state = .loading
             }
             manualRequestCancellable?.cancel()
             searchTextSubject.send(keyword)
