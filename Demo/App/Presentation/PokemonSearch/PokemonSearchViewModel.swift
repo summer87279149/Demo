@@ -10,24 +10,24 @@ import Foundation
 import Observation
 
 protocol PokemonSearchViewModelDependencyProviderType {
-    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase? { get }
+    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase { get }
 }
 
 extension Dependency: PokemonSearchViewModelDependencyProviderType {
-    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase? {
-        resolve(SearchPokemonSpeciesUseCase.self)
+    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase {
+        resolveRequired(SearchPokemonSpeciesUseCase.self)
     }
 }
 
 @Observable
 final class PokemonSearchViewModel {
     private(set) var state: PokemonSearchState = .idle
-    @ObservationIgnored var searchText: String = "" {
+    var searchText: String = "" {
         didSet {
             actionSubject.send(.textChange(searchText))
         }
     }
-    @ObservationIgnored private let useCase: SearchPokemonSpeciesUseCase?
+    @ObservationIgnored private let useCase: SearchPokemonSpeciesUseCase
     @ObservationIgnored private let pageSize: Int
     @ObservationIgnored private let actionSubject = PassthroughSubject<SearchAction, Never>()
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -127,11 +127,6 @@ final class PokemonSearchViewModel {
     }
 
     private func searchPublisher(for request: SearchRequest) -> AnyPublisher<SearchResult, Never> {
-        guard let useCase else {
-            return Just(.failure("Search service is not available.", request: request))
-                .eraseToAnyPublisher()
-        }
-
         return useCase
             .search(keyword: request.keyword, limit: pageSize, offset: request.offset)
             .map { SearchResult.page($0, request: request) }

@@ -221,7 +221,7 @@ private final class MockPokemonSearchUseCase: SearchPokemonSpeciesUseCase {
 private struct MockPokemonSearchDependencyProvider: PokemonSearchViewModelDependencyProviderType {
     let useCase: SearchPokemonSpeciesUseCase
 
-    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase? {
+    var pokemonSearchUseCase: SearchPokemonSpeciesUseCase {
         useCase
     }
 }

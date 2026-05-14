@@ -15,7 +15,7 @@ struct DemoApp: App {
         }
         Dependency.shared.register(SearchPokemonSpeciesUseCase.self) { resolver in
             DefaultSearchPokemonSpeciesUseCase(
-                repository: resolver.resolve(PokemonRepository.self) ?? DefaultPokemonRepository()
+                repository: resolver.resolveRequired(PokemonRepository.self)
             )
         }
     }

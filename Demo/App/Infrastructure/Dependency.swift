@@ -7,6 +7,8 @@
 
 import Foundation
 
+/// A lightweight dependency injection container used by this demo app.
+/// It registers factory closures by protocol/type and lazily caches resolved instances.
 final class Dependency {
     static let shared = Dependency()
 
@@ -49,6 +51,18 @@ final class Dependency {
         }
 
         resolveMap[key] = service
+        return service
+    }
+
+    func resolveRequired<T>(
+        _ type: T.Type,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) -> T {
+        guard let service = resolve(type) else {
+            preconditionFailure("Missing dependency registration for \(type).", file: file, line: line)
+        }
+
         return service
     }
 }
